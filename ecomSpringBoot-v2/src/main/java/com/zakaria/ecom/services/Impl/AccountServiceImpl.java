@@ -1,0 +1,77 @@
+package com.zakaria.ecom.services.Impl;
+
+import com.zakaria.ecom.models.AppRole;
+import com.zakaria.ecom.models.AppUser;
+import com.zakaria.ecom.repositories.AppRoleRepository;
+import com.zakaria.ecom.repositories.AppUserRepository;
+import com.zakaria.ecom.services.AccountService;
+import jakarta.transaction.Transactional;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import java.util.UUID;
+
+@Service
+@Transactional
+public class AccountServiceImpl implements AccountService {
+
+    private AppUserRepository appUserRepository;
+    private AppRoleRepository appRoleRepository;
+    private PasswordEncoder passwordEncoder;
+
+    public AccountServiceImpl(AppUserRepository appUserRepository, AppRoleRepository appRoleRepository, PasswordEncoder passwordEncoder) {
+        this.appUserRepository = appUserRepository;
+        this.appRoleRepository = appRoleRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    @Override
+    public AppUser addNewUser(String username, String password, String email, String confirmPassword) {
+
+        AppUser appUser = appUserRepository.findByUsername(username);
+        if (appUser != null) {
+            throw new RuntimeException("this user already exist");
+        }
+
+        if (!password.equals(confirmPassword)) {
+            throw new RuntimeException("password not match confirmed password");
+        }
+
+        AppUser user = AppUser.builder()
+                .userId(UUID.randomUUID().toString())
+                .username(username)
+                .password(passwordEncoder.encode(password))
+                .email(email)
+                .build();
+        appUserRepository.save(user);
+
+        return user;
+    }
+
+    @Override
+    public AppRole addNewRole(String name) {
+        AppRole role = appRoleRepository.findByName(name);
+        if (role != null) throw new RuntimeException("role already exist");
+
+        return appRoleRepository.save(AppRole.builder().id(UUID.randomUUID().toString()).name(name).build());
+    }
+
+    @Override
+    public void attachRoleToUser(String userName, String role) {
+        AppUser appUser = appUserRepository.findByUsername(userName);
+        AppRole appRole = appRoleRepository.findByName(role);
+        appUser.getRoles().add(appRole);
+    }
+
+    @Override
+    public void dettachRoleFromuser(String userName, String role) {
+        AppUser appUser = appUserRepository.findByUsername(userName);
+        AppRole appRole = appRoleRepository.findByName(role);
+        appUser.getRoles().remove(appRole);
+    }
+
+    @Override
+    public AppUser loadUserByUsername(String username) {
+        return appUserRepository.findByUsername(username);
+    }
+}
